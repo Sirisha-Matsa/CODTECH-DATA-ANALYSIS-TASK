@@ -1,0 +1,150 @@
+/*SQL concepts*/
+
+WITH SalesSummary AS (
+    SELECT
+        s.SalespersonID,
+        p.ProductCategory,
+        SUM(s.Amount) AS TotalSales,
+        ROW_NUMBER() OVER (PARTITION BY p.ProductCategory ORDER BY SUM(s.Amount) DESC) AS RankWithinCategory
+    FROM
+        Sales s
+    JOIN Products p ON s.ProductID = p.ProductID
+    WHERE
+        s.SaleDate BETWEEN '2024-01-01' AND '2024-12-31'
+    GROUP BY
+        s.SalespersonID, p.ProductCategory
+)
+SELECT *
+FROM SalesSummary
+WHERE RankWithinCategory <= 3;
+
+
+/*window function*/
+
+SELECT 
+    s.SaleDate,
+    p.ProductCategory,
+    SUM(s.Amount) OVER (PARTITION BY p.ProductCategory ORDER BY s.SaleDate) AS CumulativeSales,
+    ROW_NUMBER() OVER (PARTITION BY p.ProductCategory ORDER BY s.SaleDate ASC) AS RankInCategory
+FROM 
+    Sales s
+JOIN 
+    Products p ON s.ProductID = p.ProductID
+LIMIT 25;
+
+/*sub queries*/
+
+SELECT 
+    s.ProductID, 
+    s.Amount, 
+    (SELECT AVG(s1.Amount) 
+     FROM Sales s1 
+     JOIN Products p1 ON s1.ProductID = p1.ProductID 
+     WHERE p1.ProductCategory = p.ProductCategory
+    ) AS AvgCategorySales
+FROM 
+    Sales s
+JOIN 
+    Products p ON s.ProductID = p.ProductID
+LIMIT 25;
+
+
+/*cts*/
+
+
+WITH YearlySales AS (
+    SELECT
+        YEAR(SaleDate) AS Year,
+        ProductID,
+        SUM(Amount) AS TotalSales
+    FROM Sales
+    GROUP BY YEAR(SaleDate), ProductID
+),
+TopProducts AS (
+    SELECT
+        Year,
+        ProductID,
+        RANK() OVER (PARTITION BY Year ORDER BY TotalSales DESC) AS Rank
+    FROM YearlySales
+)
+SELECT *
+FROM TopProducts
+WHERE Rank <= 5;
+
+
+
+SQL Queries for Analysis:
+
+
+/*Overall Sales Trends*/
+
+
+SELECT 
+    DATE_FORMAT(SaleDate, '%Y-%m') AS Month,
+    SUM(Amount) AS TotalSales
+FROM 
+    Sales
+GROUP BY 
+    DATE_FORMAT(SaleDate, '%Y-%m')
+ORDER BY 
+    Month;
+
+
+/*Top 5 Products by Sales*/
+
+
+SELECT 
+    p.ProductName,
+    SUM(s.Amount) AS TotalSales
+FROM 
+    Sales s
+JOIN 
+    Products p ON s.ProductID = p.ProductID
+GROUP BY 
+    p.ProductName
+ORDER BY 
+    TotalSales DESC
+LIMIT 5;
+
+
+/*Sales by Product Category*/
+
+SELECT 
+    p.ProductCategory,
+    SUM(s.Amount) AS TotalSales
+FROM 
+    Sales s
+JOIN 
+    Products p ON s.ProductID = p.ProductID
+GROUP BY 
+    p.ProductCategory
+ORDER BY 
+    TotalSales DESC;
+
+
+/*Salesperson Performance*/
+
+SELECT 
+    sp.SalespersonName,
+    SUM(s.Amount) AS TotalSales,
+    RANK() OVER (ORDER BY SUM(s.Amount) DESC) AS Rank
+FROM 
+    Sales s
+JOIN 
+    Salespeople sp ON s.SalespersonID = sp.SalespersonID
+GROUP BY 
+    sp.SalespersonName;
+
+/*Regional Analysis*/
+
+SELECT 
+    sp.Region,
+    SUM(s.Amount) AS TotalSales
+FROM 
+    Sales s
+JOIN 
+    Salespeople sp ON s.SalespersonID = sp.SalespersonID
+GROUP BY 
+    sp.Region
+ORDER BY 
+    TotalSales DESC;
